@@ -13,7 +13,7 @@ type Step =
   | { kind: "call"; fn: () => void }
   | { kind: "end" };
 
-const FADE_MS = 280;
+const FADE_MS = 160;
 const LOOP_SPEED = 0.8;
 const LOAD_CONCURRENCY = 6;
 // Cursor within this distance of the center (as a fraction of the width) means "not looking".
@@ -249,6 +249,7 @@ export default function CharacterHero() {
       const img = frames[index];
       if (!img) return;
       ctx.globalAlpha = alpha;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, box.x, box.y, box.w, box.h);
     };
 
@@ -278,8 +279,8 @@ export default function CharacterHero() {
       ctx.globalCompositeOperation = "source-over";
       ctx.clearRect(0, 0, cssW, cssH);
 
-      const base = Math.floor(playhead);
-      const current = nearestLoaded(base);
+      // Always show one whole frame: blending neighbours ghosts the eyes and hair.
+      const current = nearestLoaded(Math.round(playhead));
       if (current < 0) return;
 
       const fadeT = fadeFrom >= 0 ? Math.min(1, (now - fadeStart) / FADE_MS) : 1;
@@ -290,10 +291,6 @@ export default function CharacterHero() {
       } else {
         fadeFrom = -1;
         paint(current, 1);
-        // Blend toward the next frame for sub-frame smoothness at slow speeds.
-        const frac = playhead - base;
-        const next = Math.min(base + 1, F.count - 1);
-        if (frac > 0.05 && frames[next] && current === base) paint(next, frac);
       }
       feather();
 
@@ -322,7 +319,7 @@ export default function CharacterHero() {
       const before = playhead;
       advance(now, dt);
       setCaption(mode === "follow" ? sideCaption() : mode === "greet" ? HERO_COPY.wave : HERO_COPY.afterWave);
-      if (needsDraw || playhead !== before || fadeFrom >= 0) {
+      if (needsDraw || Math.round(playhead) !== Math.round(before) || fadeFrom >= 0) {
         needsDraw = false;
         draw(now);
       }
