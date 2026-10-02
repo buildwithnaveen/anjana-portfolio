@@ -3,7 +3,7 @@
 // Regenerate frames with: node scripts/extract-hero-frames.mjs
 
 export const HERO_FRAMES = {
-  count: 480,
+  count: 720,
   fps: 24,
   width: 980, // source frames are cropped to 980x720 (150px off each side of the 1280x720 clips)
   height: 720,
@@ -12,6 +12,7 @@ export const HERO_FRAMES = {
   clips: [
     [0, 239], // raw/hero.mp4: typing, look left/right, headset off, wave, point
     [240, 479], // raw/lookup.mp4: typing, glance up-right, look up-left, look up
+    [480, 719], // raw/lookup2.mp4: typing, look up-right, slow turn to full left profile
   ] as const,
 
   // Typing loop (ping-pong), ends just before a blink.
@@ -22,7 +23,7 @@ export const HERO_FRAMES = {
   gaze: {
     left: [33, 54], // head turns left (continues straight on from the typing loop)
     right: [69, 87], // head turns right
-    upRight: [276, 286], // short glance up and to the right
+    upRight: [513, 540], // looks up and to the right (third clip)
     upLeft: [296, 320], // looks up and to the left
     up: [372, 372], // eyes straight up
   },
