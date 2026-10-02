@@ -22,10 +22,12 @@ export const HERO_FRAMES = {
   gaze: {
     left: [33, 54], // head turns left (continues straight on from the typing loop)
     right: [69, 87], // head turns right
-    upRight: [276, 286], // short glance up and to the right
+    upRight: [296, 320], // the up-left look, drawn mirrored (see `mirrored`)
     upLeft: [296, 320], // looks up and to the left
     up: [372, 372], // eyes straight up
   },
+  // Gaze paths drawn flipped horizontally (the clip has no clear up-right look of its own).
+  mirrored: ["upRight"] as readonly string[],
 
   // Wave only (headset already around her neck): hand rises at the start, eyes open throughout.
   greet: [168, 196] as const,

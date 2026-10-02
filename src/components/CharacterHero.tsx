@@ -108,7 +108,11 @@ export default function CharacterHero() {
       queue.shift();
       stepStart = now;
     };
+    // Whether the current / fading-out pose is drawn flipped horizontally.
+    const isMirrored = () => F.mirrored.includes(path);
+    let fadeMirrored = false;
     const crossfadeTo = (frame: number, now: number) => {
+      fadeMirrored = isMirrored();
       fadeFrom = Math.round(playhead);
       fadeStart = now;
       playhead = frame;
@@ -147,6 +151,7 @@ export default function CharacterHero() {
       mode = "greet";
       setQueue([
         { kind: "jump", to: F.greet[0] },
+        { kind: "call", fn: () => (path = "none") },
         { kind: "play", to: F.greet[1] },
         { kind: "call", fn: () => (mode = "greeted") },
         { kind: "hold", ms: GREETED_HOLD_MS },
@@ -258,12 +263,23 @@ export default function CharacterHero() {
       needsDraw = true;
     };
 
-    const paint = (index: number, alpha: number) => {
+    const paint = (index: number, alpha: number, mirrored = false) => {
       const img = frames[index];
       if (!img) return;
       ctx.globalAlpha = alpha;
       ctx.imageSmoothingQuality = "high";
+      if (!mirrored) {
+        ctx.drawImage(img, box.x, box.y, box.w, box.h);
+        return;
+      }
+      // Flip around the subject's center so she stays in the same place on screen.
+      const s = !wideLayout.matches ? F.subjectCompact : F.subject;
+      const axis = box.x + (s.x + s.w / 2) * box.w;
+      ctx.save();
+      ctx.translate(2 * axis, 0);
+      ctx.scale(-1, 1);
       ctx.drawImage(img, box.x, box.y, box.w, box.h);
+      ctx.restore();
     };
 
     // Feather the frame edges so the video backdrop melts into the hero gradient.
@@ -299,11 +315,11 @@ export default function CharacterHero() {
       const fadeT = fadeFrom >= 0 ? Math.min(1, (now - fadeStart) / FADE_MS) : 1;
       if (fadeT < 1) {
         const from = nearestLoaded(fadeFrom);
-        if (from >= 0) paint(from, 1);
-        paint(current, ease(fadeT));
+        if (from >= 0) paint(from, 1, fadeMirrored);
+        paint(current, ease(fadeT), isMirrored());
       } else {
         fadeFrom = -1;
-        paint(current, 1);
+        paint(current, 1, isMirrored());
       }
       feather();
 
