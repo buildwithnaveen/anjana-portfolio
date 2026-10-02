@@ -460,9 +460,8 @@ export default function CharacterHero() {
       </div>
 
       {/* Exploration cue */}
-      <a
-        href="#portfolio"
-        className="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 text-[0.7rem] tracking-[0.3em] whitespace-nowrap text-[#6b3a42]/80 uppercase transition-colors hover:text-[#4a1f27]"
+      <div
+        className="pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1.5 text-[0.7rem] tracking-[0.3em] whitespace-nowrap text-[#6b3a42]/80 uppercase"
       >
         {HERO_COPY.cue}
         <svg
@@ -472,7 +471,7 @@ export default function CharacterHero() {
         >
           <path d="m6 9 6 6 6-6" />
         </svg>
-      </a>
+      </div>
     </section>
   );
 }
