@@ -3,7 +3,7 @@
 A single-page interactive hero: an animated character at her laptop that reacts to where the visitor's cursor is.
 
 - **Cursor:** her head follows the cursor left and right. The further out the cursor, the further she turns. Near the middle she goes back to typing.
-- **Click:** she notices you, takes off her headset, waves and points down, holds the pose for a moment, then follows the cursor again.
+- **Click:** she waves hello, holds the pose for a moment, then goes back to typing and following the cursor.
 - **"Explore the portfolio" cue:** links to https://naveenpeter.com (`cueHref` in `src/data/hero-frames.ts`).
 - **Phones, touch and portrait screens:** a centered layout that plays the greeting once the hero is in view (tap to replay).
 - `prefers-reduced-motion`: shows the final greeting pose without animation.

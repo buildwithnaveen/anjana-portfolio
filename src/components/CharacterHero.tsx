@@ -23,7 +23,7 @@ const GAZE_RANGE = 0.32;
 // How quickly the head catches up with the cursor, and the fastest it may turn (frames/sec).
 const GAZE_RESPONSE = 7;
 const GAZE_MAX_SPEED = F.fps * 1.8;
-// After the greeting on desktop, hold the pointing pose before following the cursor again.
+// After the wave, hold the pose for a moment before going back to typing / following the cursor.
 const GREETED_HOLD_MS = 3200;
 
 const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
@@ -120,11 +120,6 @@ export default function CharacterHero() {
         message.dataset.visible = "true";
       }, 220);
     };
-    const greetCaptionFor = (frame: number) => {
-      let text = "";
-      for (const c of F.greetCaptions) if (frame >= c.from) text = c.text;
-      return text;
-    };
 
     // ---- Reactions ----
     const follow = (): Step[] => [
@@ -139,17 +134,18 @@ export default function CharacterHero() {
       { kind: "follow" },
     ];
 
-    const greet = (holdThenFollow: boolean) => {
+    // Wave twice, hold for a moment, then go back to typing (and following the cursor on desktop).
+    const greet = () => {
       mode = "greet";
-      setCaption("");
-      const after: Step[] = holdThenFollow
-        ? [{ kind: "hold", ms: GREETED_HOLD_MS }, { kind: "jump", to: F.working[1] }, ...follow()]
-        : [{ kind: "end" }];
       setQueue([
         { kind: "jump", to: F.greet[0] },
         { kind: "play", to: F.greet[1] },
+        { kind: "play", to: F.waveRepeatFrom },
+        { kind: "play", to: F.greet[1] },
         { kind: "call", fn: () => (mode = "greeted") },
-        ...after,
+        { kind: "hold", ms: GREETED_HOLD_MS },
+        { kind: "jump", to: F.working[1] },
+        ...follow(),
       ]);
     };
 
@@ -327,7 +323,7 @@ export default function CharacterHero() {
       if (!onScreen) return;
       const before = playhead;
       advance(now, dt);
-      setCaption(mode === "follow" ? sideCaption() : greetCaptionFor(Math.round(playhead)));
+      setCaption(mode === "follow" ? sideCaption() : mode === "greet" ? HERO_COPY.wave : HERO_COPY.afterWave);
       if (needsDraw || playhead !== before || fadeFrom >= 0) {
         needsDraw = false;
         draw(now);
@@ -352,7 +348,7 @@ export default function CharacterHero() {
     const onClick = (e: MouseEvent) => {
       if (reduceMotion || mode === "greet") return;
       if ((e.target as Element).closest("a")) return; // let links navigate
-      greet(wideLayout.matches);
+      greet();
     };
 
     // Mobile: greet once when the hero is mostly visible. Desktop: pause when off screen.
@@ -368,7 +364,7 @@ export default function CharacterHero() {
           entry.intersectionRatio >= 0.6
         ) {
           autoGreeted = true;
-          greetTimer = window.setTimeout(() => greet(false), 700);
+          greetTimer = window.setTimeout(greet, 700);
         }
       },
       { threshold: [0, 0.6] },
@@ -378,7 +374,7 @@ export default function CharacterHero() {
       playhead = F.greet[1];
       mode = "greeted";
       setQueue([{ kind: "end" }]);
-      setCaption(F.greetCaptions[F.greetCaptions.length - 1].text);
+      setCaption(HERO_COPY.afterWave);
     } else {
       setQueue(follow());
     }

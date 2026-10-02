@@ -16,15 +16,10 @@ export const HERO_FRAMES = {
   // Right turn starts with her head near center and turns to the right-looking peak (scrubbed by cursor position).
   rightStart: 69,
   rightPeak: 87,
-  // Notice the viewer -> headset off -> wave -> point down (holds on the clearest pointing frame).
-  greet: [102, 222] as const,
-
-  // Greeting captions keyed by the frame they appear on.
-  greetCaptions: [
-    { from: 105, text: "Hey, it's you!" },
-    { from: 174, text: "Hiiii!" },
-    { from: 204, text: "Check out the portfolio" },
-  ],
+  // Wave only (headset already around her neck): hand rises at the start, eyes open throughout.
+  greet: [168, 196] as const,
+  // The waving part is played back to here and forward again so the wave lasts a little longer.
+  waveRepeatFrom: 176,
 
   // Area of the frame the character + laptop occupy (normalized), used to size her on screen.
   subject: { x: 0.25, y: 0.1, w: 0.5, h: 0.86 },
@@ -38,6 +33,8 @@ export const HERO_COPY = {
   instruction: "Move your cursor, click to say hi",
   left: "Anyone here on the left?",
   right: "Anyone here on the right?",
+  wave: "Hiiii!",
+  afterWave: "Check out the portfolio",
   cue: "Explore the portfolio",
   cueHref: "https://naveenpeter.com",
 };
