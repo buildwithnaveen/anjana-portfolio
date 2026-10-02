@@ -11,9 +11,9 @@ export const HERO_FRAMES = {
 
   // Typing loop (ping-pong), ends just before a blink.
   working: [0, 33] as const,
-  // Head turns from the working pose to the left-looking peak.
+  // Head turns from the working pose to the left-looking peak (scrubbed by cursor position).
   leftPeak: 54,
-  // Right reaction starts with her head near center and turns to the right-looking peak.
+  // Right turn starts with her head near center and turns to the right-looking peak (scrubbed by cursor position).
   rightStart: 69,
   rightPeak: 87,
   // Notice the viewer -> headset off -> wave -> point down (holds on the clearest pointing frame).
@@ -35,7 +35,7 @@ export const HERO_FRAMES = {
 export const HERO_COPY = {
   name: "Anjana Das",
   role: "Web Developer",
-  instruction: "Move cursor to call me !",
+  instruction: "Move your cursor, click to say hi",
   left: "Anyone here on the left?",
   right: "Anyone here on the right?",
   cue: "Explore the portfolio",

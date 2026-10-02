@@ -1,24 +1,30 @@
-
 import { useEffect, useRef } from "react";
 import { HERO_COPY, HERO_FRAMES as F } from "../data/hero-frames";
 
 const cx = (...classes: string[]) => classes.join(" ");
 
-type Zone = "left" | "center" | "right";
-type Mode = "working" | "left" | "right" | "greet" | "greeted";
+type Side = "none" | "left" | "right";
+type Mode = "follow" | "greet" | "greeted";
 type Step =
   | { kind: "play"; to: number }
   | { kind: "jump"; to: number } // crossfade to a non-adjacent frame
   | { kind: "hold"; ms: number }
-  | { kind: "loop"; a: number; b: number } // ping-pong until replaced
+  | { kind: "follow" } // type, or turn her head toward the cursor, until replaced
   | { kind: "call"; fn: () => void }
   | { kind: "end" };
 
-const HOLD_MS = 2600;
 const FADE_MS = 280;
 const LOOP_SPEED = 0.8;
 const LOAD_CONCURRENCY = 6;
-const ZONE_DWELL_MS = 180;
+// Cursor within this distance of the center (as a fraction of the width) means "not looking".
+const GAZE_DEADZONE = 0.1;
+// Distance beyond the deadzone at which she reaches the full head turn.
+const GAZE_RANGE = 0.32;
+// How quickly the head catches up with the cursor, and the fastest it may turn (frames/sec).
+const GAZE_RESPONSE = 7;
+const GAZE_MAX_SPEED = F.fps * 1.8;
+// After the greeting on desktop, hold the pointing pose before following the cursor again.
+const GREETED_HOLD_MS = 3200;
 
 const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
@@ -79,9 +85,10 @@ export default function CharacterHero() {
     let loopDir = 1;
     let fadeFrom = -1;
     let fadeStart = 0;
-    let mode: Mode = "working";
-    let zone: Zone | null = null;
-    let queuedZone: Zone | null = null;
+    let mode: Mode = "follow";
+    // Where the cursor asks her to look, and which head-turn path the playhead is on.
+    const gaze: { side: Side; amount: number } = { side: "none", amount: 0 };
+    let path: Side = "none";
     let needsDraw = true;
     let lastFrame = -1;
 
@@ -92,6 +99,11 @@ export default function CharacterHero() {
     const nextStep = (now: number) => {
       queue.shift();
       stepStart = now;
+    };
+    const crossfadeTo = (frame: number, now: number) => {
+      fadeFrom = Math.round(playhead);
+      fadeStart = now;
+      playhead = frame;
     };
 
     // ---- Caption (right-side message) ----
@@ -115,68 +127,65 @@ export default function CharacterHero() {
     };
 
     // ---- Reactions ----
-    const backToWorking = (): Step[] => [
+    const follow = (): Step[] => [
       {
         kind: "call",
         fn: () => {
-          mode = "working";
+          mode = "follow";
+          path = "none";
           setCaption("");
         },
       },
-      { kind: "loop", a: F.working[0], b: F.working[1] },
+      { kind: "follow" },
     ];
 
-    const react = (target: Zone) => {
-      // Let the greeting play through; respond to wherever the cursor is afterwards.
-      if (mode === "greet") {
-        queuedZone = target;
-        return;
-      }
-      if (target === "center") {
-        if (mode === "greeted") return;
-        mode = "greet";
-        setCaption("");
-        setQueue([
-          { kind: "jump", to: F.greet[0] },
-          { kind: "play", to: F.greet[1] },
-          {
-            kind: "call",
-            fn: () => {
-              mode = "greeted";
-              const next = queuedZone;
-              queuedZone = null;
-              if (next && next !== "center") react(next);
-            },
-          },
-          { kind: "end" },
-        ]);
-        return;
-      }
-      if (target === mode) return;
+    const greet = (holdThenFollow: boolean) => {
+      mode = "greet";
+      setCaption("");
+      const after: Step[] = holdThenFollow
+        ? [{ kind: "hold", ms: GREETED_HOLD_MS }, { kind: "jump", to: F.working[1] }, ...follow()]
+        : [{ kind: "end" }];
+      setQueue([
+        { kind: "jump", to: F.greet[0] },
+        { kind: "play", to: F.greet[1] },
+        { kind: "call", fn: () => (mode = "greeted") },
+        ...after,
+      ]);
+    };
 
-      if (target === "left") {
-        mode = "left";
-        setCaption(HERO_COPY.left);
-        const onPath = playhead >= F.working[1] - 3 && playhead <= F.leftPeak;
-        setQueue([
-          ...(onPath ? [] : [{ kind: "jump", to: F.working[1] } as Step]),
-          { kind: "play", to: F.leftPeak },
-          { kind: "hold", ms: HOLD_MS },
-          { kind: "play", to: F.working[1] },
-          ...backToWorking(),
-        ]);
-      } else {
-        mode = "right";
-        setCaption(HERO_COPY.right);
-        const onPath = playhead >= F.rightStart && playhead <= F.rightPeak;
-        setQueue([
-          ...(onPath ? [] : [{ kind: "jump", to: F.rightStart } as Step]),
-          { kind: "play", to: F.rightPeak },
-          { kind: "hold", ms: HOLD_MS },
-          { kind: "play", to: F.rightStart },
-          { kind: "jump", to: F.working[1] },
-          ...backToWorking(),
-        ]);
+    // Each head-turn path runs from a near-center pose to the full turn.
+    const pathRange = (side: Side): readonly [number, number] =>
+      side === "left" ? [F.working[1], F.leftPeak] : [F.rightStart, F.rightPeak];
+
+    const followStep = (now: number, dt: number) => {
+      if (path === "none") {
+        if (gaze.side === "none") {
+          playhead += loopDir * F.fps * LOOP_SPEED * dt;
+          if (playhead >= F.working[1]) [playhead, loopDir] = [F.working[1], -1];
+          else if (playhead <= F.working[0]) [playhead, loopDir] = [F.working[0], 1];
+          return;
+        }
+        // Start turning: the left turn continues straight on from the typing loop,
+        // the right turn starts from its own near-center pose.
+        if (gaze.side === "right" || playhead < F.working[1] - 6) {
+          crossfadeTo(gaze.side === "left" ? F.working[1] : F.rightStart, now);
+        }
+        path = gaze.side;
+        return;
+      }
+
+      const [start, peak] = pathRange(path);
+      const target = gaze.side === path ? start + gaze.amount * (peak - start) : start;
+      const delta = (target - playhead) * (1 - Math.exp(-dt * GAZE_RESPONSE));
+      const limit = GAZE_MAX_SPEED * dt;
+      playhead += Math.max(-limit, Math.min(limit, delta));
+
+      // Back at the start of the path while the cursor wants something else: return to typing.
+      if (gaze.side !== path && Math.abs(playhead - start) < 0.6) {
+        if (path === "right") crossfadeTo(F.working[1], now);
+        else playhead = start;
+        path = "none";
+        loopDir = -1;
       }
     };
 
@@ -186,9 +195,7 @@ export default function CharacterHero() {
         if (!step || step.kind === "end") return;
         switch (step.kind) {
           case "jump":
-            fadeFrom = Math.round(playhead);
-            fadeStart = now;
-            playhead = step.to;
+            crossfadeTo(step.to, now);
             nextStep(now);
             continue;
           case "call":
@@ -199,10 +206,8 @@ export default function CharacterHero() {
             if (now - stepStart < step.ms) return;
             nextStep(now);
             continue;
-          case "loop":
-            playhead += loopDir * F.fps * LOOP_SPEED * dt;
-            if (playhead >= step.b) [playhead, loopDir] = [step.b, -1];
-            else if (playhead <= step.a) [playhead, loopDir] = [step.a, 1];
+          case "follow":
+            followStep(now, dt);
             return;
           case "play": {
             const dir = Math.sign(step.to - playhead);
@@ -308,14 +313,21 @@ export default function CharacterHero() {
     let raf = 0;
     let last = performance.now();
     let onScreen = true;
+    const sideCaption = () => {
+      if (path === "none" || gaze.side !== path) return "";
+      const [start, peak] = pathRange(path);
+      if ((playhead - start) / (peak - start) < 0.4) return "";
+      return path === "left" ? HERO_COPY.left : HERO_COPY.right;
+    };
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      const dt = Math.min(0.05, (now - last) / 1000);
+      // Real-time pacing even when frames are slow; cap so a long pause (e.g. tab switch) cannot skip a whole beat.
+      const dt = Math.min(0.25, (now - last) / 1000);
       last = now;
       if (!onScreen) return;
       const before = playhead;
       advance(now, dt);
-      if (mode === "greet" || mode === "greeted") setCaption(greetCaptionFor(Math.round(playhead)));
+      setCaption(mode === "follow" ? sideCaption() : greetCaptionFor(Math.round(playhead)));
       if (needsDraw || playhead !== before || fadeFrom >= 0) {
         needsDraw = false;
         draw(now);
@@ -323,28 +335,24 @@ export default function CharacterHero() {
     };
 
     // ---- Input ----
-    let dwellTimer: number | undefined;
+    const setGaze = (side: Side, amount: number) => {
+      gaze.side = side;
+      gaze.amount = amount;
+      section.dataset.gaze = side === "none" ? "none" : `${side}:${amount.toFixed(2)}`;
+    };
     const onPointerMove = (e: PointerEvent) => {
       if (e.pointerType !== "mouse" || !wideLayout.matches || reduceMotion) return;
       const rect = section.getBoundingClientRect();
-      const ratio = (e.clientX - rect.left) / rect.width;
-      const next: Zone = ratio < 1 / 3 ? "left" : ratio > 2 / 3 ? "right" : "center";
-      if (next === zone) return;
-      zone = next;
-      section.dataset.zone = next;
-      // React only once the cursor settles, so sweeping across the center doesn't trigger the greeting.
-      window.clearTimeout(dwellTimer);
-      dwellTimer = window.setTimeout(() => react(next), ZONE_DWELL_MS);
+      const offset = (e.clientX - rect.left) / rect.width - 0.5;
+      const reach = Math.abs(offset) - GAZE_DEADZONE;
+      if (reach <= 0) setGaze("none", 0);
+      else setGaze(offset < 0 ? "left" : "right", Math.min(1, reach / GAZE_RANGE));
     };
-    const onPointerLeave = () => {
-      zone = null;
-      window.clearTimeout(dwellTimer);
-      delete section.dataset.zone;
-    };
-    const onTap = () => {
-      if (wideLayout.matches || reduceMotion || mode === "greet") return;
-      mode = "working";
-      react("center");
+    const onPointerLeave = () => setGaze("none", 0);
+    const onClick = (e: MouseEvent) => {
+      if (reduceMotion || mode === "greet") return;
+      if ((e.target as Element).closest("a")) return; // let links navigate
+      greet(wideLayout.matches);
     };
 
     // Mobile: greet once when the hero is mostly visible. Desktop: pause when off screen.
@@ -360,7 +368,7 @@ export default function CharacterHero() {
           entry.intersectionRatio >= 0.6
         ) {
           autoGreeted = true;
-          greetTimer = window.setTimeout(() => react("center"), 700);
+          greetTimer = window.setTimeout(() => greet(false), 700);
         }
       },
       { threshold: [0, 0.6] },
@@ -372,7 +380,7 @@ export default function CharacterHero() {
       setQueue([{ kind: "end" }]);
       setCaption(F.greetCaptions[F.greetCaptions.length - 1].text);
     } else {
-      setQueue(backToWorking());
+      setQueue(follow());
     }
 
     const resizeObserver = new ResizeObserver(resize);
@@ -381,7 +389,7 @@ export default function CharacterHero() {
     observer.observe(section);
     section.addEventListener("pointermove", onPointerMove);
     section.addEventListener("pointerleave", onPointerLeave);
-    section.addEventListener("click", onTap);
+    section.addEventListener("click", onClick);
     resize();
     raf = requestAnimationFrame(tick);
 
@@ -390,13 +398,12 @@ export default function CharacterHero() {
       cancelAnimationFrame(raf);
       window.clearTimeout(captionTimer);
       window.clearTimeout(greetTimer);
-      window.clearTimeout(dwellTimer);
       resizeObserver.disconnect();
       observer.disconnect();
       wideLayout.removeEventListener("change", resize);
       section.removeEventListener("pointermove", onPointerMove);
       section.removeEventListener("pointerleave", onPointerLeave);
-      section.removeEventListener("click", onTap);
+      section.removeEventListener("click", onClick);
     };
   }, []);
 
