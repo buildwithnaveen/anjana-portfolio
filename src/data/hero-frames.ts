@@ -18,8 +18,6 @@ export const HERO_FRAMES = {
   rightPeak: 87,
   // Wave only (headset already around her neck): hand rises at the start, eyes open throughout.
   greet: [168, 196] as const,
-  // The waving part is played back to here and forward again so the wave lasts a little longer.
-  waveRepeatFrom: 176,
 
   // Area of the frame the character + laptop occupy (normalized), used to size her on screen.
   subject: { x: 0.25, y: 0.1, w: 0.5, h: 0.86 },

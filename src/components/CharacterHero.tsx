@@ -134,13 +134,11 @@ export default function CharacterHero() {
       { kind: "follow" },
     ];
 
-    // Wave twice, hold for a moment, then go back to typing (and following the cursor on desktop).
+    // Wave once, hold for a moment, then go back to typing (and following the cursor on desktop).
     const greet = () => {
       mode = "greet";
       setQueue([
         { kind: "jump", to: F.greet[0] },
-        { kind: "play", to: F.greet[1] },
-        { kind: "play", to: F.waveRepeatFrom },
         { kind: "play", to: F.greet[1] },
         { kind: "call", fn: () => (mode = "greeted") },
         { kind: "hold", ms: GREETED_HOLD_MS },
