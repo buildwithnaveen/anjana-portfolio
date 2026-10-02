@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Side-by-side hero layout with cursor zones; everything else gets the centered layout. */
+@custom-variant wide (@media (min-width: 768px) and (pointer: fine) and (min-aspect-ratio: 4/5));
+
+@theme {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Outfit", system-ui, sans-serif;
+  --color-rose-ink: #4a1f27;
+  --color-rose-deep: #6b3a42;
+  --color-rose-accent: #9e5a63;
+  --color-rose-mist: #f7e7ea;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: #fdf6f7;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--color-rose-ink);
+  background: #fdf6f7;
+  overflow-x: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Interactive character hero */
+@keyframes hero-cursor {
+  0%, 100% { transform: translate(-3px, 0); }
+  50% { transform: translate(4px, 2px); }
+}
+@keyframes hero-ring {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes hero-cue {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(4px); opacity: 1; }
+}
+
+/* White center, dusty rose to light maroon toward the edges */
+.hero-bg {
+  background: radial-gradient(ellipse 120% 62% at 50% 52%, #ffffff 0%, #fffafa 48%, #f4dfe2 74%, #dcaab2 100%);
+}
+@media (min-width: 768px) and (pointer: fine) and (min-aspect-ratio: 4/5) {
+  .hero-bg {
+    background: radial-gradient(ellipse 62% 72% at 50% 56%, #ffffff 0%, #fffafa 34%, #f7e7ea 56%, #e9c9ce 76%, #c99099 100%);
+  }
+}
