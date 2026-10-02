@@ -1,6 +1,6 @@
 # Anjana Das: Portfolio
 
-Interactive portfolio hero: an animated character at her laptop that reacts to where the visitor's cursor is.
+A single-page interactive hero: an animated character at her laptop that reacts to where the visitor's cursor is.
 
 - **Left third:** she looks left ("Anyone here on the left?"), holds ~2.5s, then goes back to work.
 - **Right third:** the same, to the right.
@@ -36,7 +36,3 @@ The character video (`raw/hero.mp4`, gitignored) is split into WebP frames in `p
 1. Put the new clip at `raw/hero.mp4`. Keep the camera locked, 16:9, with the same beats in order: working, look left, look right, notice the viewer, headset off, wave, point down.
 2. Run `node scripts/extract-hero-frames.mjs`. It writes 24fps, 1280px WebP frames and lifts the highlights so the backdrop reads as white.
 3. Update the frame numbers in `src/data/hero-frames.ts`.
-
-## Placeholder content
-
-The Work, About and Contact sections in `src/App.tsx` are placeholders. Replace the project cards, the intro text and `hello@example.com`.
