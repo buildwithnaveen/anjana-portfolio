@@ -424,7 +424,7 @@ export default function CharacterHero() {
       aria-label="Introduction"
       className={cx(
         "font-body",
-        "hero-bg relative isolate h-svh min-h-[620px] w-full overflow-hidden select-none",
+        "hero-bg relative isolate h-dvh min-h-[420px] w-full overflow-hidden select-none",
       )}
     >
       {/* Bright glow behind the character */}
