@@ -39,4 +39,5 @@ export const HERO_COPY = {
   left: "Anyone here on the left?",
   right: "Anyone here on the right?",
   cue: "Explore the portfolio",
+  cueHref: "https://naveenpeter.com",
 };
