@@ -1,11 +1,11 @@
 // Frame map for the interactive character hero.
-// Frames are 0-based indices into /hero-frames/frame_0001.webp … (24fps, 1280x720).
+// Frames are 0-based indices into /hero-frames/frame_0001.webp … (24fps, 980x720).
 // Regenerate frames with: node scripts/extract-hero-frames.mjs
 
 export const HERO_FRAMES = {
   count: 480,
   fps: 24,
-  width: 1280,
+  width: 980, // source frames are cropped to 980x720 (150px off each side of the 1280x720 clips)
   height: 720,
   path: (i: number) => `/hero-frames/frame_${String(i + 1).padStart(4, "0")}.webp`,
   // Separate source clips (inclusive ranges); frames are never borrowed across clips.
@@ -31,9 +31,9 @@ export const HERO_FRAMES = {
   greet: [168, 196] as const,
 
   // Area of the frame the character + laptop occupy (normalized), used to size her on screen.
-  subject: { x: 0.25, y: 0.1, w: 0.5, h: 0.86 },
+  subject: { x: 0.1735, y: 0.1, w: 0.6531, h: 0.86 },
   // Tighter crop for narrow screens (hands stay inside it even mid-wave).
-  subjectCompact: { x: 0.28, y: 0.1, w: 0.44, h: 0.86 },
+  subjectCompact: { x: 0.2127, y: 0.1, w: 0.5747, h: 0.86 },
 } as const;
 
 export const HERO_COPY = {
