@@ -3,19 +3,30 @@
 // Regenerate frames with: node scripts/extract-hero-frames.mjs
 
 export const HERO_FRAMES = {
-  count: 240,
+  count: 480,
   fps: 24,
   width: 1280,
   height: 720,
   path: (i: number) => `/hero-frames/frame_${String(i + 1).padStart(4, "0")}.webp`,
+  // Separate source clips (inclusive ranges); frames are never borrowed across clips.
+  clips: [
+    [0, 239], // raw/hero.mp4: typing, look left/right, headset off, wave, point
+    [240, 479], // raw/lookup.mp4: typing, glance up-right, look up-left, look up
+  ] as const,
 
   // Typing loop (ping-pong), ends just before a blink.
   working: [0, 33] as const,
-  // Head turns from the working pose to the left-looking peak (scrubbed by cursor position).
-  leftPeak: 54,
-  // Right turn starts with her head near center and turns to the right-looking peak (scrubbed by cursor position).
-  rightStart: 69,
-  rightPeak: 87,
+
+  // Head/eye paths scrubbed by the cursor: [near-neutral start, full look].
+  // A start equal to its end is a single held pose.
+  gaze: {
+    left: [33, 54], // head turns left (continues straight on from the typing loop)
+    right: [69, 87], // head turns right
+    upRight: [276, 286], // short glance up and to the right
+    upLeft: [296, 320], // looks up and to the left
+    up: [372, 372], // eyes straight up
+  },
+
   // Wave only (headset already around her neck): hand rises at the start, eyes open throughout.
   greet: [168, 196] as const,
 

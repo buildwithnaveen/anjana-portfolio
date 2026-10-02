@@ -1,5 +1,17 @@
 {
-  "count": 240,
+  "count": 480,
   "fps": 24,
-  "width": 1280
+  "width": 1280,
+  "clips": [
+    {
+      "input": "raw/hero.mp4",
+      "first": 0,
+      "last": 239
+    },
+    {
+      "input": "raw/lookup.mp4",
+      "first": 240,
+      "last": 479
+    }
+  ]
 }

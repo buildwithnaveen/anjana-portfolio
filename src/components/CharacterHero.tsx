@@ -3,7 +3,8 @@ import { HERO_COPY, HERO_FRAMES as F } from "../data/hero-frames";
 
 const cx = (...classes: string[]) => classes.join(" ");
 
-type Side = "none" | "left" | "right";
+type Gaze = keyof typeof F.gaze;
+type Side = "none" | Gaze;
 type Mode = "follow" | "greet" | "greeted";
 type Step =
   | { kind: "play"; to: number }
@@ -20,6 +21,11 @@ const LOAD_CONCURRENCY = 6;
 const GAZE_DEADZONE = 0.1;
 // Distance beyond the deadzone at which she reaches the full head turn.
 const GAZE_RANGE = 0.32;
+// Cursor above this fraction of the hero height (roughly her eye line) makes her look up.
+const UP_ZONE = 0.3;
+// In the upper area: how far from center before she looks up-left / up-right, and the full-look distance.
+const UP_DEADZONE = 0.1;
+const UP_RANGE = 0.26;
 // How quickly the head catches up with the cursor, and the fastest it may turn (frames/sec).
 const GAZE_RESPONSE = 7;
 const GAZE_MAX_SPEED = F.fps * 1.8;
@@ -70,10 +76,12 @@ export default function CharacterHero() {
     };
     for (let k = 0; k < LOAD_CONCURRENCY; k++) void loadNext();
 
+    // Nearest decoded frame from the same source clip (never borrow a pose from the other clip).
     const nearestLoaded = (i: number) => {
-      for (let d = 0; d < F.count; d++) {
-        if (frames[i - d]) return i - d;
-        if (frames[i + d]) return i + d;
+      const [first, last] = F.clips.find(([a, b]) => i >= a && i <= b) ?? [0, F.count - 1];
+      for (let d = 0; d <= last - first; d++) {
+        if (i - d >= first && frames[i - d]) return i - d;
+        if (i + d <= last && frames[i + d]) return i + d;
       }
       return -1;
     };
@@ -147,9 +155,14 @@ export default function CharacterHero() {
       ]);
     };
 
-    // Each head-turn path runs from a near-center pose to the full turn.
-    const pathRange = (side: Side): readonly [number, number] =>
-      side === "left" ? [F.working[1], F.leftPeak] : [F.rightStart, F.rightPeak];
+    // Each gaze path runs from a near-neutral pose to the full look.
+    const pathRange = (side: Gaze): readonly [number, number] => F.gaze[side];
+    // Only the left turn continues straight on from the typing loop; everything else crossfades in.
+    const enterPath = (side: Gaze, now: number) => {
+      const continuesFromTyping = side === "left" && path === "none" && playhead >= F.working[1] - 6;
+      if (!continuesFromTyping) crossfadeTo(pathRange(side)[0], now);
+      path = side;
+    };
 
     const followStep = (now: number, dt: number) => {
       if (path === "none") {
@@ -159,12 +172,7 @@ export default function CharacterHero() {
           else if (playhead <= F.working[0]) [playhead, loopDir] = [F.working[0], 1];
           return;
         }
-        // Start turning: the left turn continues straight on from the typing loop,
-        // the right turn starts from its own near-center pose.
-        if (gaze.side === "right" || playhead < F.working[1] - 6) {
-          crossfadeTo(gaze.side === "left" ? F.working[1] : F.rightStart, now);
-        }
-        path = gaze.side;
+        enterPath(gaze.side, now);
         return;
       }
 
@@ -174,10 +182,15 @@ export default function CharacterHero() {
       const limit = GAZE_MAX_SPEED * dt;
       playhead += Math.max(-limit, Math.min(limit, delta));
 
-      // Back at the start of the path while the cursor wants something else: return to typing.
+      // Back at the start of the path while the cursor wants something else:
+      // go straight to the next look, or back to typing.
       if (gaze.side !== path && Math.abs(playhead - start) < 0.6) {
-        if (path === "right") crossfadeTo(F.working[1], now);
-        else playhead = start;
+        if (gaze.side !== "none") {
+          enterPath(gaze.side, now);
+          return;
+        }
+        if (path === "left") playhead = start;
+        else crossfadeTo(F.working[1], now);
         path = "none";
         loopDir = -1;
       }
@@ -305,7 +318,7 @@ export default function CharacterHero() {
     let last = performance.now();
     let onScreen = true;
     const sideCaption = () => {
-      if (path === "none" || gaze.side !== path) return "";
+      if ((path !== "left" && path !== "right") || gaze.side !== path) return "";
       const [start, peak] = pathRange(path);
       if ((playhead - start) / (peak - start) < 0.4) return "";
       return path === "left" ? HERO_COPY.left : HERO_COPY.right;
@@ -335,6 +348,12 @@ export default function CharacterHero() {
       if (e.pointerType !== "mouse" || !wideLayout.matches || reduceMotion) return;
       const rect = section.getBoundingClientRect();
       const offset = (e.clientX - rect.left) / rect.width - 0.5;
+      if ((e.clientY - rect.top) / rect.height < UP_ZONE) {
+        const reach = Math.abs(offset) - UP_DEADZONE;
+        if (reach <= 0) setGaze("up", 1);
+        else setGaze(offset < 0 ? "upLeft" : "upRight", Math.min(1, reach / UP_RANGE));
+        return;
+      }
       const reach = Math.abs(offset) - GAZE_DEADZONE;
       if (reach <= 0) setGaze("none", 0);
       else setGaze(offset < 0 ? "left" : "right", Math.min(1, reach / GAZE_RANGE));
